@@ -1,12 +1,12 @@
 /**
  * Copyright 2016 Yurii Rashkovskii
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -16,46 +16,14 @@ package graphql.annotations;
 
 import graphql.TypeResolutionEnvironment;
 import graphql.relay.Relay;
-import graphql.schema.DataFetcher;
-import graphql.schema.DataFetchingEnvironment;
-import graphql.schema.DataFetchingEnvironmentImpl;
-import graphql.schema.FieldDataFetcher;
-import graphql.schema.GraphQLArgument;
-import graphql.schema.GraphQLFieldDefinition;
-import graphql.schema.GraphQLInputObjectField;
-import graphql.schema.GraphQLInputObjectType;
-import graphql.schema.GraphQLInputType;
-import graphql.schema.GraphQLInterfaceType;
-import graphql.schema.GraphQLList;
+import graphql.schema.*;
 import graphql.schema.GraphQLNonNull;
-import graphql.schema.GraphQLObjectType;
-import graphql.schema.GraphQLOutputType;
-import graphql.schema.GraphQLTypeReference;
-import graphql.schema.GraphQLUnionType;
-import graphql.schema.PropertyDataFetcher;
-import graphql.schema.TypeResolver;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
 
 import javax.validation.constraints.NotNull;
-import java.lang.reflect.AccessibleObject;
-import java.lang.reflect.AnnotatedElement;
-import java.lang.reflect.AnnotatedType;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.Parameter;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Stack;
-import java.util.TreeMap;
+import java.lang.reflect.*;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -209,7 +177,6 @@ public class GraphQLAnnotations implements GraphQLAnnotationsProcessor {
      * breadthFirst parental ascent looking for closest method declaration with explicit annotation
      *
      * @param method The method to match
-     *
      * @return The closest GraphQLField annotation
      */
     private boolean breadthFirstSearch(Method method) {
@@ -251,7 +218,6 @@ public class GraphQLAnnotations implements GraphQLAnnotationsProcessor {
      * direct parental ascent looking for closest declaration with explicit annotation
      *
      * @param field The field to find
-     *
      * @return The closest GraphQLField annotation
      */
     private boolean parentalSearch(Field field) {
@@ -452,6 +418,17 @@ public class GraphQLAnnotations implements GraphQLAnnotationsProcessor {
             actualDataFetcher = new ConnectionDataFetcher(field.getAnnotation(GraphQLConnection.class).connection(), actualDataFetcher);
         }
 
+        GraphQLFieldArgument[] argumentAnnotations = field.getAnnotationsByType(GraphQLFieldArgument.class);
+        for (GraphQLFieldArgument argumentAnnotation : argumentAnnotations) {
+            if (argumentAnnotation != null) {
+                graphql.schema.GraphQLType graphQLType = typeFunction.buildType(argumentAnnotation.type(), null);
+                builder.argument(newArgument()
+                        .name(argumentAnnotation.name())
+                        .description("".equals(argumentAnnotation.description()) ? null : argumentAnnotation.description())
+                        .type((GraphQLInputType) graphQLType));
+            }
+        }
+
         builder.dataFetcher(actualDataFetcher);
 
         return new GraphQLFieldDefinitionWrapper(builder.build());
@@ -459,7 +436,7 @@ public class GraphQLAnnotations implements GraphQLAnnotationsProcessor {
 
     private DataFetcher constructDataFetcher(String fieldName, GraphQLDataFetcher annotatedDataFetcher) {
         final String[] args;
-        if ( annotatedDataFetcher.firstArgIsTargetName() ) {
+        if (annotatedDataFetcher.firstArgIsTargetName()) {
             args = Stream.concat(Stream.of(fieldName), stream(annotatedDataFetcher.args())).toArray(String[]::new);
         } else {
             args = annotatedDataFetcher.args();
